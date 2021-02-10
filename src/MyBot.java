@@ -139,6 +139,8 @@ public class MyBot implements Bot {
         // Stop the unit for aiming only if is not low health
         if (unit.health > 33) {
           api.setSpeed(unit.id, Speed.NONE);
+        } else {
+          api.setSpeed(unit.id, Speed.FORWARD);
         }
 
 
@@ -150,7 +152,7 @@ public class MyBot implements Bot {
         }
         int targetAimAngle = 15;
         if (opponent.speed == Speed.NONE) { //Aim better if target is stopped
-          targetAimAngle = 5;
+          targetAimAngle = 1;
         }
         if ((aimAngle > targetAimAngle || aimAngle < targetAimAngle) && unit.canShoot) {
           api.shoot(unit.id);
