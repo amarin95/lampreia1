@@ -101,21 +101,30 @@ public class MyBot implements Bot {
           unit.navigationPath = null;
           api.navigationStart(unit.id, closeResourcePosition.x, closeResourcePosition.y);
           memory.removeScoutedResource(closeResourcePosition);
-          api.saySomething(unit.id, "going to scouted!");
+          //api.saySomething(unit.id, "going to scouted!");
         }
 
       }
       /* WORKER ACTION ROUTINE */
       if (unit.type == UnitType.WORKER && unit.resourcesInView.length > 0 && unit.health > 20) {
-        ResourceInView resource = unit.resourcesInView[0];
+        float closerResourceDistance = 9999999;
+        ResourceInView closerResource = null;
+        for (ResourceInView resourceInRange : unit.resourcesInView) {
+          float resourceDistance = MathUtil.distance(unit.x, unit.y, resourceInRange.x, resourceInRange.y);
+          if (resourceDistance < closerResourceDistance) {
+            closerResource = resourceInRange;
+            closerResourceDistance = resourceDistance;
+          }
+        }
+
 
         //TODO: Check what to do with de memory saved data.
-        if (memory.checkIfIsAlreadyInList(resource)) {
-          memory.removeScoutedResource(resource);
-          api.saySomething(unit.id, "scouted on sight!");
+        if (memory.checkIfIsAlreadyInList(closerResource)) {
+          memory.removeScoutedResource(closerResource);
+          //api.saySomething(unit.id, "scouted on sight!");
 
         }
-        api.navigationStart(unit.id, resource.x, resource.y);
+        api.navigationStart(unit.id, closerResource.x, closerResource.y);
 
       }
 
@@ -123,12 +132,12 @@ public class MyBot implements Bot {
       // If the unit is a warrior and it sees an opponent then start shooting
 
       /* START OF WARRIOR ACTION ROUTINE */
-      if (unit.type == UnitType.WARRIOR && unit.opponentsInView.length > 0 && unit.canShoot) {
+      if (unit.type == UnitType.WARRIOR && unit.opponentsInView.length > 0) {
         OpponentInView opponent = unit.opponentsInView[0];
         float aimAngle = MathUtil.angleBetweenUnitAndPoint(unit, opponent.x, opponent.y);
 
         // Stop the unit for aiming only if is not low health
-        if (unit.health > 25) {
+        if (unit.health > 33) {
           api.setSpeed(unit.id, Speed.NONE);
         }
 
@@ -139,18 +148,20 @@ public class MyBot implements Bot {
         } else {
           api.setRotation(unit.id, Rotation.LEFT);
         }
-
-        if (aimAngle > 15 || aimAngle < 15) {
+        int targetAimAngle = 15;
+        if (opponent.speed == Speed.NONE) { //Aim better if target is stopped
+          targetAimAngle = 5;
+        }
+        if ((aimAngle > targetAimAngle || aimAngle < targetAimAngle) && unit.canShoot) {
           api.shoot(unit.id);
         }
 
-        api.saySomething(unit.id, "I see you! HAHA");
+        api.saySomething(unit.id, "Piu piu");
       }
       if (unit.type == UnitType.WARRIOR && unit.resourcesInView.length > 0) {
         for (ResourceInView scoutedResource : unit.resourcesInView) {
           if (!memory.checkIfIsAlreadyInList(scoutedResource)) {
             memory.scoutedResources.add(scoutedResource);
-            api.saySomething(unit.id, "FOUNDED RESOURCE");
           }
         }
       }
