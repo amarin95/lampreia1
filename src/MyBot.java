@@ -27,11 +27,14 @@ public class MyBot implements Bot {
   // - Api reference:       https://docs.liagame.com/api/#api-object
   @Override
   public void update(GameState state, Api api) {
+
+    /* INIT ROUTINE (WHEN GAME TIME = 0*/
     if (state.time == 0) {
 
       return;
     }
-
+    /* END OF INIT ROUTINE */
+    /* SPAWN ROUTINE */
     // If you have enough resources to spawn a new warrior unit then spawn it.
     int numberOfWorkers = 0;
     for (UnitData unit : state.units) {
@@ -51,12 +54,17 @@ public class MyBot implements Bot {
     else if (state.resources >= Constants.WARRIOR_PRICE) {
       api.spawnUnit(UnitType.WARRIOR);
     }
+
+    /* END OF SPAWN ROUTINE */
+
+    /*START OF UNITS LOOP */
     // We iterate through all of our units that are still alive.
     for (int i = 0; i < state.units.length; i++) {
       UnitData unit = state.units[i];
-
       // If the unit is not going anywhere, we send it
       // to a random valid location on the map.
+
+      /* START OF MOVEMENT ROUTINE */
       if (unit.navigationPath.length == 0) {
 
         // Generate new x and y until you get a position on the map
@@ -74,9 +82,13 @@ public class MyBot implements Bot {
         }
       }
 
+      /*END OF UNIT MOVEMENT ROUTINE */
+
       // If the unit is a worker and it sees at least one resource
       // then make it go to the first resource to collect it.
-      if (unit.type == UnitType.WORKER && unit.resourcesInView.length > 0) {
+
+      /* WORKER ACTION ROUTINE */
+      if (unit.type == UnitType.WORKER && unit.resourcesInView.length > 0 && unit.health > 20) {
         ResourceInView resource = unit.resourcesInView[0];
         if (memory.checkIfIsAlreadyInList(resource)) {
           memory.removeScoutedResource(resource);
@@ -86,13 +98,19 @@ public class MyBot implements Bot {
 
       }
 
+      /* END OF WORKER ACTION ROUTINE */
       // If the unit is a warrior and it sees an opponent then start shooting
+
+      /* START OF WARRIOR ACTION ROUTINE */
       if (unit.type == UnitType.WARRIOR && unit.opponentsInView.length > 0 && unit.canShoot) {
         OpponentInView opponent = unit.opponentsInView[0];
         float aimAngle = MathUtil.angleBetweenUnitAndPoint(unit, opponent.x, opponent.y);
 
-        // Stop the unit.
-        api.setSpeed(unit.id, Speed.NONE);
+        // Stop the unit for aiming only if is not low health
+        if (unit.health > 30) {
+          api.setSpeed(unit.id, Speed.NONE);
+        }
+
 
         // Based on the aiming angle turn towards the opponent.
         if (aimAngle < 0) {
@@ -108,6 +126,8 @@ public class MyBot implements Bot {
         memory.scoutedResources.add(unit.resourcesInView[0]);
         api.saySomething(unit.id, "FOUNDED RESOURCE");
       }
+
+      /* END OF WARRIOR ROUTINE */
     }
   }
 
@@ -117,6 +137,8 @@ public class MyBot implements Bot {
   }
 }
 
+
+// To other file
 class CustomMemory {
 
   List<ResourceInView> scoutedResources = new ArrayList<ResourceInView>();
