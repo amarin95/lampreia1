@@ -3,9 +3,13 @@ import java.util.List;
 import lia.Api;
 import lia.Bot;
 import lia.Constants;
+import lia.MathUtil;
 import lia.NetworkingClient;
 import lia.api.GameState;
+import lia.api.OpponentInView;
 import lia.api.ResourceInView;
+import lia.api.Rotation;
+import lia.api.Speed;
 import lia.api.UnitData;
 import lia.api.UnitType;
 
@@ -27,11 +31,26 @@ public class MyBot implements Bot {
 
       return;
     }
+
     // If you have enough resources to spawn a new warrior unit then spawn it.
-    if (state.resources >= Constants.WARRIOR_PRICE) {
-      api.spawnUnit(UnitType.WARRIOR);
+    int numberOfWorkers = 0;
+    for (UnitData unit : state.units) {
+      if (unit.type == UnitType.WORKER) {
+        numberOfWorkers++;
+      }
     }
 
+// If from all of your units less than 60% are workers
+// and you have enough resources, then create a new worker.
+    if (numberOfWorkers / (float) state.units.length < 0.6f && state.time < Constants.STOP_SPAWNING_AFTER / 2) {
+      if (state.resources >= Constants.WORKER_PRICE) {
+        api.spawnUnit(UnitType.WORKER);
+      }
+    }
+// Else if you can, spawn a new warrior
+    else if (state.resources >= Constants.WARRIOR_PRICE) {
+      api.spawnUnit(UnitType.WARRIOR);
+    }
     // We iterate through all of our units that are still alive.
     for (int i = 0; i < state.units.length; i++) {
       UnitData unit = state.units[i];
@@ -69,6 +88,18 @@ public class MyBot implements Bot {
 
       // If the unit is a warrior and it sees an opponent then start shooting
       if (unit.type == UnitType.WARRIOR && unit.opponentsInView.length > 0 && unit.canShoot) {
+        OpponentInView opponent = unit.opponentsInView[0];
+        float aimAngle = MathUtil.angleBetweenUnitAndPoint(unit, opponent.x, opponent.y);
+
+        // Stop the unit.
+        api.setSpeed(unit.id, Speed.NONE);
+
+        // Based on the aiming angle turn towards the opponent.
+        if (aimAngle < 0) {
+          api.setRotation(unit.id, Rotation.RIGHT);
+        } else {
+          api.setRotation(unit.id, Rotation.LEFT);
+        }
         api.shoot(unit.id);
         api.saySomething(unit.id, "I see you! HAHA");
       }
