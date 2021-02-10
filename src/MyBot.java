@@ -86,7 +86,7 @@ public class MyBot implements Bot {
 
       // If the unit is a worker and it sees at least one resource
       // then make it go to the first resource to collect it.
-      if (unit.type == UnitType.WORKER && unit.resourcesInView.length < 0 && memory.scoutedResources.size() > 0) {
+      if (unit.type == UnitType.WORKER && unit.resourcesInView.length == 0 && !memory.scoutedResources.isEmpty()) {
         ResourceInView closeResourcePosition = null;
         float closeResourceDistance = 9999999;
         for (ResourceInView resourcePosition : memory.scoutedResources) {
@@ -98,7 +98,10 @@ public class MyBot implements Bot {
         }
 
         if (closeResourceDistance < 80) {
+          unit.navigationPath = null;
           api.navigationStart(unit.id, closeResourcePosition.x, closeResourcePosition.y);
+          memory.removeScoutedResource(closeResourcePosition);
+          api.saySomething(unit.id, "going to scouted!");
         }
 
       }
@@ -109,7 +112,8 @@ public class MyBot implements Bot {
         //TODO: Check what to do with de memory saved data.
         if (memory.checkIfIsAlreadyInList(resource)) {
           memory.removeScoutedResource(resource);
-          api.saySomething(unit.id, "going to scouted!");
+          api.saySomething(unit.id, "scouted on sight!");
+
         }
         api.navigationStart(unit.id, resource.x, resource.y);
 
@@ -168,7 +172,6 @@ class CustomMemory {
 
   boolean checkIfIsAlreadyInList(ResourceInView resource) {
     if (scoutedResources != null && !scoutedResources.isEmpty()) {
-      //  return scoutedResources.stream().filter(saved -> saved.x == resource.x && saved.y == resource.y).findFirst().isPresent();
       return scoutedResources.stream().anyMatch(o -> o.x == resource.x && o.y == resource.y);
     }
     return false;
