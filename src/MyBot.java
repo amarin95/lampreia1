@@ -118,7 +118,6 @@ public class MyBot implements Bot {
         }
 
 
-        //TODO: Check what to do with de memory saved data.
         if (memory.checkIfIsAlreadyInList(closerResource)) {
           memory.removeScoutedResource(closerResource);
           //api.saySomething(unit.id, "scouted on sight!");
