@@ -140,16 +140,19 @@ public class MyBot implements Bot {
           api.setRotation(unit.id, Rotation.LEFT);
         }
 
-        if (aimAngle > 20 || aimAngle < 20) {
+        if (aimAngle > 15 || aimAngle < 15) {
           api.shoot(unit.id);
         }
 
         api.saySomething(unit.id, "I see you! HAHA");
       }
-      if (unit.type == UnitType.WARRIOR && unit.resourcesInView.length > 0 && !memory
-          .checkIfIsAlreadyInList(unit.resourcesInView[0])) {
-        memory.scoutedResources.add(unit.resourcesInView[0]);
-        api.saySomething(unit.id, "FOUNDED RESOURCE");
+      if (unit.type == UnitType.WARRIOR && unit.resourcesInView.length > 0) {
+        for (ResourceInView scoutedResource : unit.resourcesInView) {
+          if (!memory.checkIfIsAlreadyInList(scoutedResource)) {
+            memory.scoutedResources.add(scoutedResource);
+            api.saySomething(unit.id, "FOUNDED RESOURCE");
+          }
+        }
       }
 
       /* END OF WARRIOR ROUTINE */
