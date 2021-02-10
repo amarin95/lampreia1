@@ -28,7 +28,7 @@ public class MyBot implements Bot {
   @Override
   public void update(GameState state, Api api) {
 
-    /* INIT ROUTINE (WHEN GAME TIME = 0*/
+    /* INIT ROUTINE (WHEN GAME TIME = 0)*/
     if (state.time == 0) {
 
       return;
@@ -86,10 +86,27 @@ public class MyBot implements Bot {
 
       // If the unit is a worker and it sees at least one resource
       // then make it go to the first resource to collect it.
+      if (unit.type == UnitType.WORKER && unit.resourcesInView.length < 0 && memory.scoutedResources.size() > 0) {
+        ResourceInView closeResourcePosition = null;
+        float closeResourceDistance = 9999999;
+        for (ResourceInView resourcePosition : memory.scoutedResources) {
+          float resourceDistance = MathUtil.distance(unit.x, unit.y, resourcePosition.x, resourcePosition.y);
+          if (resourceDistance < closeResourceDistance) {
+            closeResourcePosition = resourcePosition;
+            closeResourceDistance = resourceDistance;
+          }
+        }
 
+        if (closeResourceDistance < 80) {
+          api.navigationStart(unit.id, closeResourcePosition.x, closeResourcePosition.y);
+        }
+
+      }
       /* WORKER ACTION ROUTINE */
       if (unit.type == UnitType.WORKER && unit.resourcesInView.length > 0 && unit.health > 20) {
         ResourceInView resource = unit.resourcesInView[0];
+
+        //TODO: Check what to do with de memory saved data.
         if (memory.checkIfIsAlreadyInList(resource)) {
           memory.removeScoutedResource(resource);
           api.saySomething(unit.id, "going to scouted!");
@@ -107,7 +124,7 @@ public class MyBot implements Bot {
         float aimAngle = MathUtil.angleBetweenUnitAndPoint(unit, opponent.x, opponent.y);
 
         // Stop the unit for aiming only if is not low health
-        if (unit.health > 30) {
+        if (unit.health > 25) {
           api.setSpeed(unit.id, Speed.NONE);
         }
 
@@ -118,7 +135,11 @@ public class MyBot implements Bot {
         } else {
           api.setRotation(unit.id, Rotation.LEFT);
         }
-        api.shoot(unit.id);
+
+        if (aimAngle > 20 || aimAngle < 20) {
+          api.shoot(unit.id);
+        }
+
         api.saySomething(unit.id, "I see you! HAHA");
       }
       if (unit.type == UnitType.WARRIOR && unit.resourcesInView.length > 0 && !memory
@@ -137,8 +158,9 @@ public class MyBot implements Bot {
   }
 }
 
+// TODO: To other file
 
-// To other file
+//Methods to save usefull positions in memory
 class CustomMemory {
 
   List<ResourceInView> scoutedResources = new ArrayList<ResourceInView>();
