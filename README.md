@@ -14,10 +14,6 @@
     
     
 ## TODO ## 
-
- * Improve shooting
-   * Aiming: rangecheck (distance < x)
-   * Follow-up : go to enemy position to shoot
  
  * Memory
    * Workers scouting: communicate to warriors close positions
