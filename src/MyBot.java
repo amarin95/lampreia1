@@ -57,7 +57,7 @@ public class MyBot implements Bot {
     }
 
     // Spawns workers when there are less than 60% of them and the game still generates resources. Otherwise go for Warriors.
-    if (numberOfWorkers / (float) state.units.length < 0.6f && state.time < Constants.STOP_SPAWNING_AFTER / 1.6) {
+    if (numberOfWorkers / (float) state.units.length < 0.6f && state.time < Constants.STOP_SPAWNING_AFTER / 1.2 && numberOfWorkers < 10) {
       if (state.resources >= Constants.WORKER_PRICE) {
         api.spawnUnit(UnitType.WORKER);
       }
@@ -79,66 +79,59 @@ public class MyBot implements Bot {
       /*END OF UNIT MOVEMENT ROUTINE */
 
       /* WORKER ACTION ROUTINE */
-      // If a worker can't see a resource, go pick the closest from the list
-      if (unit.type == UnitType.WORKER && unit.resourcesInView.length == 0 && !memory.scoutedResources.isEmpty()) {
-        api.saySomething(unit.id, "NO RESOURCE ON SIGHT");
-        ResourceInView closeResourcePosition = null;
-        float closeResourceDistance = 9999999;
-        for (ResourceInView resourcePosition : memory.scoutedResources) {
-          float resourceDistance = MathUtil.distance(unit.x, unit.y, resourcePosition.x, resourcePosition.y);
-          if (resourceDistance < closeResourceDistance) {
-            closeResourcePosition = resourcePosition;
-            closeResourceDistance = resourceDistance;
+      if (unit.type == UnitType.WORKER) {
+        if (unit.opponentsInView.length > 0) {
+          for (OpponentInView opponent : unit.opponentsInView) {
+            if (!memory.checkOpponentIfIsAlreadyInList(opponent)) {
+              memory.scoutedOpponents.add(opponent);
+            } else {
+              memory.updateScoutedOpponent(opponent);
+            }
           }
         }
 
-        if (closeResourceDistance < 45) {
-          unit.navigationPath = null;
-          api.navigationStart(unit.id, closeResourcePosition.x, closeResourcePosition.y);
-          if (MathUtil.distance(unit.x, unit.y, closeResourcePosition.x, closeResourcePosition.y) < 15) {
-            memory.removeScoutedResource(closeResourcePosition);
+        if (unit.resourcesInView.length == 0 && !memory.scoutedResources.isEmpty()) {
+          api.saySomething(unit.id, "NO RESOURCE ON SIGHT");
+          ResourceInView closeResourcePosition = null;
+          float closeResourceDistance = 9999999;
+          for (ResourceInView resourcePosition : memory.scoutedResources) {
+            float resourceDistance = MathUtil.distance(unit.x, unit.y, resourcePosition.x, resourcePosition.y);
+            if (resourceDistance < closeResourceDistance) {
+              closeResourcePosition = resourcePosition;
+              closeResourceDistance = resourceDistance;
+            }
+          }
+
+          if (closeResourceDistance < 45) {
+            unit.navigationPath = null;
+            api.navigationStart(unit.id, closeResourcePosition.x, closeResourcePosition.y);
+            if (MathUtil.distance(unit.x, unit.y, closeResourcePosition.x, closeResourcePosition.y) < 15) {
+              memory.removeScoutedResource(closeResourcePosition);
+            }
           }
         }
 
-      }
-
-      if (unit.type == UnitType.WORKER && unit.resourcesInView.length > 0 && unit.health > 20) {
-
-        float closerResourceDistance = 9999999;
-        ResourceInView closerResource = null;
-        for (ResourceInView resourceInRange : unit.resourcesInView) {
-          float resourceDistance = MathUtil.distance(unit.x, unit.y, resourceInRange.x, resourceInRange.y);
-          if (resourceDistance < closerResourceDistance) {
-            closerResource = resourceInRange;
-            closerResourceDistance = resourceDistance;
+        if (unit.resourcesInView.length > 0 && unit.health > 20) {
+          float closerResourceDistance = 9999999;
+          ResourceInView closerResource = null;
+          for (ResourceInView resourceInRange : unit.resourcesInView) {
+            float resourceDistance = MathUtil.distance(unit.x, unit.y, resourceInRange.x, resourceInRange.y);
+            if (resourceDistance < closerResourceDistance) {
+              closerResource = resourceInRange;
+              closerResourceDistance = resourceDistance;
+            }
           }
-        }
 
-        if (memory.checkResourceIfIsAlreadyInList(closerResource)) {
-          memory.removeScoutedResource(closerResource);
+          if (memory.checkResourceIfIsAlreadyInList(closerResource)) {
+            memory.removeScoutedResource(closerResource);
 
-        }
-        api.navigationStart(unit.id, closerResource.x, closerResource.y);
-
-      }
-
-      if (unit.type == UnitType.WORKER && unit.opponentsInView.length > 0) {
-        for (OpponentInView opponent : unit.opponentsInView) {
-          if (!memory.checkOpponentIfIsAlreadyInList(opponent)) {
-            memory.scoutedOpponents.add(opponent);
-          } else {
-            memory.updateScoutedOpponent(opponent);
           }
+          api.navigationStart(unit.id, closerResource.x, closerResource.y);
         }
       }
-
-      /* END OF WORKER ACTION ROUTINE */
-
-
-      // If the unit is a warrior and it sees an opponent then start shooting
+      /* EOF WORKER ACTION ROUTINE */
 
       /* START OF WARRIOR ACTION ROUTINE */
-
       if (unit.type == UnitType.WARRIOR && unit.opponentsInView.length == 0) {
         OpponentInView nearOpponent = memory.checkIfHasOpponentNear(unit);
         if (nearOpponent != null && unit.health > 33) {
@@ -149,34 +142,42 @@ public class MyBot implements Bot {
       }
       if (unit.type == UnitType.WARRIOR && unit.opponentsInView.length > 0) {
         OpponentInView opponent = unit.opponentsInView[0];
-        float aimAngle = MathUtil.angleBetweenUnitAndPoint(unit, opponent.x, opponent.y);
-
-        // Stop the unit for aiming only if is not low health
-        if (unit.health > 33) {
-          // api.setSpeed(unit.id, Speed.NONE);
-        } else {
-          api.setSpeed(unit.id, Speed.FORWARD);
-        }
-
+        float aimAngle = calculateAimAngle(unit, opponent);
 
         // Based on the aiming angle turn towards the opponent.
-        if (aimAngle < 0) {
+        if (aimAngle > 0 && aimAngle < 3) {
+          api.setRotation(unit.id, Rotation.SLOW_LEFT);
+        }
+        else if (aimAngle < 0 && aimAngle > -3) {
+          api.setRotation(unit.id, Rotation.SLOW_RIGHT);
+        }
+        else if (aimAngle < 0) {
           api.setRotation(unit.id, Rotation.RIGHT);
-        } else {
+        }
+        else {
           api.setRotation(unit.id, Rotation.LEFT);
         }
-        int targetAimAngle = 5;
-        if (opponent.speed == Speed.NONE) { //Aim better if target is stopped
-          targetAimAngle = 1;
-        }
-        api.navigationStart(unit.id, opponent.x, opponent.y);
 
-        if ((aimAngle > targetAimAngle || aimAngle < targetAimAngle) && unit.canShoot
-            && MathUtil.distance(unit.x, unit.y, opponent.x, opponent.y) < 15) {
+        float angleDifference = differenceAngle(unit, opponent);
+        if ((aimAngle < angleDifference && aimAngle >= 0) || (aimAngle > -angleDifference && aimAngle <= 0)) {
           api.shoot(unit.id);
         }
 
-        //api.saySomething(unit.id, "Piu piu piu");
+        float opponentRotationRelativeToUnit = MathUtil.angleBetweenUnitAndPoint
+            (opponent.x, opponent.y, opponent.orientationAngle, unit.x, unit.y);
+
+        if ((opponentRotationRelativeToUnit > 110f
+            || opponentRotationRelativeToUnit < -110f)
+            && opponent.speed == Speed.FORWARD
+            && MathUtil.distance(unit.x, unit.y, opponent.x, opponent.y) > 10f
+            && unit.canShoot) {
+          api.setSpeed(unit.id, Speed.FORWARD);
+        }
+        else {
+          api.setSpeed(unit.id, Speed.NONE);
+        }
+
+        api.saySomething(unit.id, "Piu piu piu");
       }
       if (unit.type == UnitType.WARRIOR && unit.resourcesInView.length > 0) {
         for (ResourceInView scoutedResource : unit.resourcesInView) {
@@ -185,10 +186,73 @@ public class MyBot implements Bot {
           }
         }
       }
-
-      /* END OF WARRIOR ROUTINE */
+      /* EOF WARRIOR ACTION ROUTINE */
     }
     /* EOF UNITS ACTIONS LOOP */
+  }
+
+  public float calculateAimAngle(UnitData unit, OpponentInView opponent) {
+
+    float velocity = 0;
+    if (opponent.speed == Speed.FORWARD) velocity = Constants.UNIT_FORWARD_VELOCITY;
+    else if (opponent.speed == Speed.BACKWARD) velocity = Constants.UNIT_BACKWARD_VELOCITY;
+
+    if (velocity != 0) {
+      float angle = opponent.orientationAngle;
+
+      double velocityX = 1;
+      double velocityY = 1;
+
+      if (angle <= 90f) {
+        angle = angle;
+      }
+      else if (angle <= 180f) {
+        angle = 180f - angle;
+        velocityX = -1;
+      }
+      else if (angle <= 270f) {
+        angle = angle - 180f;
+        velocityX = -1;
+        velocityY = -1;
+      }
+      else {
+        angle = -angle;
+        velocityY = -1;
+      }
+
+      velocityX *= Math.cos(Math.toRadians(angle)) * velocity;
+      velocityY *= Math.sin(Math.toRadians(angle)) * velocity;
+
+      double a = Math.pow(velocityX, 2) + Math.pow(velocityY, 2) - Math.pow(Constants.BULLET_VELOCITY, 2);
+      double b = 2 * (velocityX * (opponent.x - unit.x) + velocityY * (opponent.y - unit.y));
+      double c = Math.pow(opponent.x - unit.x, 2) + Math.pow(opponent.y - unit.y, 2);
+
+      double disc = Math.pow(b, 2) - 4 * a * c;
+
+      double t1 = (-b + Math.sqrt(disc)) / (2 * a);
+      double t2 = (-b - Math.sqrt(disc)) / (2 * a);
+      double t;
+
+      if (t1 < t2 && t1 > 0) {
+        t = t1;
+      }
+      else {
+        t = t2;
+      }
+
+      double aimX = t * velocityX + opponent.x;
+      double aimY = t * velocityY + opponent.y;
+
+      return (float) MathUtil.angleBetweenUnitAndPoint(unit, (float) aimX, (float) aimY);
+    }
+
+    return MathUtil.angleBetweenUnitAndPoint(unit, opponent.x, opponent.y);
+  }
+
+  public float differenceAngle(UnitData unit, OpponentInView enemy) {
+    float distance = MathUtil.distance(unit.x, unit.y, enemy.x, enemy.y);
+    double hipo = Math.sqrt(Math.pow((double) Constants.UNIT_DIAMETER / 2, 2) + Math.pow(distance, 2));
+    return (float) Math.toDegrees(Math.asin(Constants.UNIT_DIAMETER / 2 / (float) hipo)) / 2f;
   }
 
   // Connects your bot to Lia game engine, don't change it.
