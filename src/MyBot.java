@@ -13,7 +13,6 @@ import lia.api.Speed;
 import lia.api.UnitData;
 import lia.api.UnitType;
 
-
 /**
  * Initial implementation keeps picking random locations on the map and sending units there. Worker units collect
  * resources if they see them while warrior units shoot if they see opponents.
@@ -22,7 +21,6 @@ public class MyBot implements Bot {
 
   CustomMemory memory = new CustomMemory();
 
-
   // This method is called 10 times per game second and holds current
   // game state. Use Api object to call actions on your units.
   // - GameState reference: https://docs.liagame.com/api/#gamestate
@@ -30,15 +28,13 @@ public class MyBot implements Bot {
   @Override
   public void update(GameState state, Api api) {
 
-    /* INIT ROUTINE (WHEN GAME TIME = 0)*/
+    /* INIT ROUTINE */
     if (state.time == 0) {
-
       return;
     }
+    /* EOF INIT ROUTINE */
 
-    /* END OF INIT ROUTINE */
-    /* SPAWN ROUTINE */
-    // If you have enough resources to spawn a new warrior unit then spawn it.
+    /* UNITS SPAWN ROUTINE */
     int numberOfWorkers = 0;
     for (UnitData unit : state.units) {
       if (unit.type == UnitType.WORKER) {
@@ -46,33 +42,24 @@ public class MyBot implements Bot {
       }
     }
 
-// If from all of your units less than 60% are workers
-// and you have enough resources, then create a new worker.
-    if (numberOfWorkers / (float) state.units.length < 0.6f && state.time < Constants.STOP_SPAWNING_AFTER / 2) {
+    // Spawns workers when there are less than 60% of them and the game still generates resources. Otherwise go for Warriors.
+    if (numberOfWorkers / (float) state.units.length < 0.6f && state.time < Constants.STOP_SPAWNING_AFTER / 1.6) {
       if (state.resources >= Constants.WORKER_PRICE) {
         api.spawnUnit(UnitType.WORKER);
       }
     }
-// Else if you can, spawn a new warrior
     else if (state.resources >= Constants.WARRIOR_PRICE) {
       api.spawnUnit(UnitType.WARRIOR);
     }
+    /* EOF UNITS SPAWN ROUTINE */
 
-    /* END OF SPAWN ROUTINE */
-
-    /*START OF UNITS LOOP */
-    // We iterate through all of our units that are still alive.
+    /* UNITS ACTIONS LOOP */
     for (int i = 0; i < state.units.length; i++) {
       UnitData unit = state.units[i];
-      //api.saySomething(unit.id, "IM ID: " + unit.id);
-      // If the unit is not going anywhere, we send it
-      // to a random valid location on the map.
 
       /* START OF MOVEMENT ROUTINE */
+      // Units scout the map randomly only if they are not moving
       if (unit.navigationPath.length == 0) {
-
-        // Generate new x and y until you get a position on the map
-        // where there is no obstacle. Then move the unit there.
         while (true) {
           int x = (int) (Math.random() * Constants.MAP_WIDTH);
           int y = (int) (Math.random() * Constants.MAP_HEIGHT);
@@ -85,13 +72,10 @@ public class MyBot implements Bot {
           }
         }
       }
-
-      memory.removeKilledUnits();
-
       /*END OF UNIT MOVEMENT ROUTINE */
 
-      // If the unit is a worker and it sees at least one resource
-      // then make it go to the first resource to collect it.
+      /* WORKER ACTION ROUTINE */
+      // If a worker can't see a resource, go pick the closest from the list
       if (unit.type == UnitType.WORKER && unit.resourcesInView.length == 0 && !memory.scoutedResources.isEmpty()) {
         ResourceInView closeResourcePosition = null;
         float closeResourceDistance = 9999999;
@@ -103,15 +87,14 @@ public class MyBot implements Bot {
           }
         }
 
-        if (closeResourceDistance < 80) {
+        if (closeResourceDistance < 70) {
           unit.navigationPath = null;
           api.navigationStart(unit.id, closeResourcePosition.x, closeResourcePosition.y);
           memory.removeScoutedResource(closeResourcePosition);
-          //api.saySomething(unit.id, "going to scouted!");
         }
 
       }
-      /* WORKER ACTION ROUTINE */
+
       if (unit.type == UnitType.WORKER && unit.resourcesInView.length > 0 && unit.health > 20) {
         float closerResourceDistance = 9999999;
         ResourceInView closerResource = null;
@@ -143,6 +126,8 @@ public class MyBot implements Bot {
       }
 
       /* END OF WORKER ACTION ROUTINE */
+
+
       // If the unit is a warrior and it sees an opponent then start shooting
 
       /* START OF WARRIOR ACTION ROUTINE */
@@ -197,6 +182,7 @@ public class MyBot implements Bot {
 
       /* END OF WARRIOR ROUTINE */
     }
+    /* EOF UNITS ACTIONS LOOP */
   }
 
   // Connects your bot to Lia game engine, don't change it.
