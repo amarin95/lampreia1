@@ -345,10 +345,4 @@ class CustomMemory {
     }
     return null;
   }
-
-  void removeKilledUnits() {
-
-  }
-
-
 }
