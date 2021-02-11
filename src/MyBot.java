@@ -13,6 +13,7 @@ import lia.api.Speed;
 import lia.api.UnitData;
 import lia.api.UnitType;
 
+
 /**
  * Initial implementation keeps picking random locations on the map and sending units there. Worker units collect
  * resources if they see them while warrior units shoot if they see opponents.
@@ -20,6 +21,7 @@ import lia.api.UnitType;
 public class MyBot implements Bot {
 
   CustomMemory memory = new CustomMemory();
+
 
   // This method is called 10 times per game second and holds current
   // game state. Use Api object to call actions on your units.
@@ -33,6 +35,7 @@ public class MyBot implements Bot {
 
       return;
     }
+
     /* END OF INIT ROUTINE */
     /* SPAWN ROUTINE */
     // If you have enough resources to spawn a new warrior unit then spawn it.
@@ -61,6 +64,7 @@ public class MyBot implements Bot {
     // We iterate through all of our units that are still alive.
     for (int i = 0; i < state.units.length; i++) {
       UnitData unit = state.units[i];
+      //api.saySomething(unit.id, "IM ID: " + unit.id);
       // If the unit is not going anywhere, we send it
       // to a random valid location on the map.
 
@@ -81,6 +85,8 @@ public class MyBot implements Bot {
           }
         }
       }
+
+      memory.removeKilledUnits();
 
       /*END OF UNIT MOVEMENT ROUTINE */
 
@@ -117,8 +123,7 @@ public class MyBot implements Bot {
           }
         }
 
-
-        if (memory.checkIfIsAlreadyInList(closerResource)) {
+        if (memory.checkResourceIfIsAlreadyInList(closerResource)) {
           memory.removeScoutedResource(closerResource);
           //api.saySomething(unit.id, "scouted on sight!");
 
@@ -127,17 +132,36 @@ public class MyBot implements Bot {
 
       }
 
+      if (unit.opponentsInView.length > 0) {
+        for (OpponentInView opponent : unit.opponentsInView) {
+          if (!memory.checkOpponentIfIsAlreadyInList(opponent)) {
+            memory.scoutedOpponents.add(opponent);
+          } else {
+            memory.updateScoutedOpponent(opponent);
+          }
+        }
+      }
+
       /* END OF WORKER ACTION ROUTINE */
       // If the unit is a warrior and it sees an opponent then start shooting
 
       /* START OF WARRIOR ACTION ROUTINE */
+
+      if (unit.type == UnitType.WARRIOR && unit.opponentsInView.length == 0) {
+        OpponentInView nearOpponent = memory.checkIfHasOpponentNear(unit);
+        if (nearOpponent != null && unit.health > 33) {
+          api.saySomething(unit.id, "GOING TO OPPONENT ID: " + nearOpponent.id);
+          api.navigationStart(unit.id, nearOpponent.x, nearOpponent.y);
+          memory.removeScoutedOpponent(nearOpponent);
+        }
+      }
       if (unit.type == UnitType.WARRIOR && unit.opponentsInView.length > 0) {
         OpponentInView opponent = unit.opponentsInView[0];
         float aimAngle = MathUtil.angleBetweenUnitAndPoint(unit, opponent.x, opponent.y);
 
         // Stop the unit for aiming only if is not low health
         if (unit.health > 33) {
-          api.setSpeed(unit.id, Speed.NONE);
+          // api.setSpeed(unit.id, Speed.NONE);
         } else {
           api.setSpeed(unit.id, Speed.FORWARD);
         }
@@ -149,19 +173,23 @@ public class MyBot implements Bot {
         } else {
           api.setRotation(unit.id, Rotation.LEFT);
         }
-        int targetAimAngle = 15;
+        int targetAimAngle = 5;
         if (opponent.speed == Speed.NONE) { //Aim better if target is stopped
           targetAimAngle = 1;
         }
-        if ((aimAngle > targetAimAngle || aimAngle < targetAimAngle) && unit.canShoot) {
+        api.navigationStart(unit.id, opponent.x, opponent.y);
+        api.saySomething(unit.id, "distance! :" + MathUtil.distance(unit.x, unit.y, opponent.x, opponent.y));
+
+        if ((aimAngle > targetAimAngle || aimAngle < targetAimAngle) && unit.canShoot
+            && MathUtil.distance(unit.x, unit.y, opponent.x, opponent.y) < 15) {
           api.shoot(unit.id);
         }
 
-        api.saySomething(unit.id, "Piu piu piu");
+        //api.saySomething(unit.id, "Piu piu piu");
       }
       if (unit.type == UnitType.WARRIOR && unit.resourcesInView.length > 0) {
         for (ResourceInView scoutedResource : unit.resourcesInView) {
-          if (!memory.checkIfIsAlreadyInList(scoutedResource)) {
+          if (!memory.checkResourceIfIsAlreadyInList(scoutedResource)) {
             memory.scoutedResources.add(scoutedResource);
           }
         }
@@ -182,33 +210,87 @@ public class MyBot implements Bot {
 //Methods to save usefull positions in memory
 class CustomMemory {
 
+  static int SCOUTED_OPPONENT_MIN_DISTANCE = 50;
+
   List<ResourceInView> scoutedResources = new ArrayList<ResourceInView>();
+  List<OpponentInView> scoutedOpponents = new ArrayList<OpponentInView>();
 
 
-  boolean checkIfIsAlreadyInList(ResourceInView resource) {
+  boolean checkResourceIfIsAlreadyInList(ResourceInView resource) {
     if (scoutedResources != null && !scoutedResources.isEmpty()) {
       return scoutedResources.stream().anyMatch(o -> o.x == resource.x && o.y == resource.y);
     }
     return false;
   }
 
+  boolean checkOpponentIfIsAlreadyInList(OpponentInView opponent) {
+    if (scoutedOpponents != null && !scoutedOpponents.isEmpty()) {
+      return scoutedOpponents.stream().anyMatch(o -> o.id == opponent.id);
+    }
+    return false;
+  }
+
+  OpponentInView checkIfHasOpponentNear(UnitData unit) {
+    for (OpponentInView scoutedOpponent : scoutedOpponents) {
+      if (MathUtil.distance(unit.x, unit.y, scoutedOpponent.x, scoutedOpponent.y) < SCOUTED_OPPONENT_MIN_DISTANCE) {
+        return scoutedOpponent;
+      }
+    }
+    return null;
+  }
+
+  void updateScoutedOpponent(OpponentInView opponent) {
+    OpponentInView savedOpponent = findScoutedOpponent(opponent);
+    if (savedOpponent != null) {
+      int indexOfScoutedOpponent = scoutedOpponents.indexOf(savedOpponent);
+      scoutedOpponents.set(indexOfScoutedOpponent, opponent);
+    }
+  }
+
+  OpponentInView findScoutedOpponent(OpponentInView opponent) {
+    for (OpponentInView scoutedOpponent : scoutedOpponents) {
+      if (scoutedOpponent.id == opponent.id) {
+        return scoutedOpponent;
+      }
+    }
+    return null;
+  }
+
+
+
+
+
   void removeScoutedResource(ResourceInView resource) {
 
     if (scoutedResources != null && !scoutedResources.isEmpty()) {
-      ResourceInView resourcex = this.findScouted(resource);
+      ResourceInView resourcex = this.findScoutedResource(resource);
       scoutedResources.remove(resourcex);
     }
 
 
   }
 
-  ResourceInView findScouted(ResourceInView resource) {
+  void removeScoutedOpponent(OpponentInView opponent) {
+
+    if (scoutedOpponents != null && !scoutedOpponents.isEmpty()) {
+      OpponentInView opponentx = this.findScoutedOpponent(opponent);
+      scoutedOpponents.remove(opponentx);
+    }
+
+
+  }
+
+  ResourceInView findScoutedResource(ResourceInView resource) {
     for (ResourceInView scoutedResource : scoutedResources) {
       if (scoutedResource.x == resource.x && scoutedResource.y == resource.y) {
         return scoutedResource;
       }
     }
     return null;
+  }
+
+  void removeKilledUnits() {
+
   }
 
 
