@@ -16,16 +16,16 @@
 ## TODO ## 
 
  * Improve shooting
-   ** Aiming: rangecheck (distance < x)
-   ** Follow-up : go to enemy position to shoot
+   * Aiming: rangecheck (distance < x)
+   * Follow-up : go to enemy position to shoot
  
  * Memory
-  ** Workers scouting: communicate to warriors close positions
+  * Workers scouting: communicate to warriors close positions
  
  * Check
-   ** Can we avoid FF? Check friendlies in range, check if aiming improvements avoid FF.
+   * Can we avoid FF? Check friendlies in range, check if aiming improvements avoid FF.
  
  * Pathing
-   ** Workers: path to resources in order. Check if resource is still there.
+   * Workers: path to resources in order. Check if resource is still there.
    
   
