@@ -157,7 +157,7 @@ public class MyBot implements Bot {
           api.shoot(unit.id);
         }
 
-        api.saySomething(unit.id, "Piu piu");
+        api.saySomething(unit.id, "Piu piu piu");
       }
       if (unit.type == UnitType.WARRIOR && unit.resourcesInView.length > 0) {
         for (ResourceInView scoutedResource : unit.resourcesInView) {
