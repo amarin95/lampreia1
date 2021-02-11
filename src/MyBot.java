@@ -13,6 +13,7 @@ import lia.api.Speed;
 import lia.api.UnitData;
 import lia.api.UnitType;
 
+
 /**
  * Initial implementation keeps picking random locations on the map and sending units there. Worker units collect
  * resources if they see them while warrior units shoot if they see opponents.
@@ -21,6 +22,19 @@ public class MyBot implements Bot {
 
   CustomMemory memory = new CustomMemory();
 
+  void goToRandomPosition(Api api, int unitId) {
+    while (true) {
+      int x = (int) (Math.random() * Constants.MAP_WIDTH);
+      int y = (int) (Math.random() * Constants.MAP_HEIGHT);
+
+      // Map is a 2D array of booleans. If map[x][y] equals false it means that
+      // at (x,y) there is no obstacle and we can safely move our unit there.
+      if (!Constants.MAP[x][y]) {
+        api.navigationStart(unitId, x, y);
+        break;
+      }
+    }
+  }
   // This method is called 10 times per game second and holds current
   // game state. Use Api object to call actions on your units.
   // - GameState reference: https://docs.liagame.com/api/#gamestate
@@ -60,23 +74,14 @@ public class MyBot implements Bot {
       /* START OF MOVEMENT ROUTINE */
       // Units scout the map randomly only if they are not moving
       if (unit.navigationPath.length == 0) {
-        while (true) {
-          int x = (int) (Math.random() * Constants.MAP_WIDTH);
-          int y = (int) (Math.random() * Constants.MAP_HEIGHT);
-
-          // Map is a 2D array of booleans. If map[x][y] equals false it means that
-          // at (x,y) there is no obstacle and we can safely move our unit there.
-          if (!Constants.MAP[x][y]) {
-            api.navigationStart(unit.id, x, y);
-            break;
-          }
-        }
+        goToRandomPosition(api, unit.id);
       }
       /*END OF UNIT MOVEMENT ROUTINE */
 
       /* WORKER ACTION ROUTINE */
       // If a worker can't see a resource, go pick the closest from the list
       if (unit.type == UnitType.WORKER && unit.resourcesInView.length == 0 && !memory.scoutedResources.isEmpty()) {
+        api.saySomething(unit.id, "NO RESOURCE ON SIGHT");
         ResourceInView closeResourcePosition = null;
         float closeResourceDistance = 9999999;
         for (ResourceInView resourcePosition : memory.scoutedResources) {
@@ -87,15 +92,18 @@ public class MyBot implements Bot {
           }
         }
 
-        if (closeResourceDistance < 70) {
+        if (closeResourceDistance < 45) {
           unit.navigationPath = null;
           api.navigationStart(unit.id, closeResourcePosition.x, closeResourcePosition.y);
-          memory.removeScoutedResource(closeResourcePosition);
+          if (MathUtil.distance(unit.x, unit.y, closeResourcePosition.x, closeResourcePosition.y) < 15) {
+            memory.removeScoutedResource(closeResourcePosition);
+          }
         }
 
       }
 
       if (unit.type == UnitType.WORKER && unit.resourcesInView.length > 0 && unit.health > 20) {
+
         float closerResourceDistance = 9999999;
         ResourceInView closerResource = null;
         for (ResourceInView resourceInRange : unit.resourcesInView) {
@@ -108,14 +116,13 @@ public class MyBot implements Bot {
 
         if (memory.checkResourceIfIsAlreadyInList(closerResource)) {
           memory.removeScoutedResource(closerResource);
-          //api.saySomething(unit.id, "scouted on sight!");
 
         }
         api.navigationStart(unit.id, closerResource.x, closerResource.y);
 
       }
 
-      if (unit.opponentsInView.length > 0) {
+      if (unit.type == UnitType.WORKER && unit.opponentsInView.length > 0) {
         for (OpponentInView opponent : unit.opponentsInView) {
           if (!memory.checkOpponentIfIsAlreadyInList(opponent)) {
             memory.scoutedOpponents.add(opponent);
@@ -163,7 +170,6 @@ public class MyBot implements Bot {
           targetAimAngle = 1;
         }
         api.navigationStart(unit.id, opponent.x, opponent.y);
-        api.saySomething(unit.id, "distance! :" + MathUtil.distance(unit.x, unit.y, opponent.x, opponent.y));
 
         if ((aimAngle > targetAimAngle || aimAngle < targetAimAngle) && unit.canShoot
             && MathUtil.distance(unit.x, unit.y, opponent.x, opponent.y) < 15) {
@@ -199,6 +205,7 @@ class CustomMemory {
   static int SCOUTED_OPPONENT_MIN_DISTANCE = 50;
 
   List<ResourceInView> scoutedResources = new ArrayList<ResourceInView>();
+
   List<OpponentInView> scoutedOpponents = new ArrayList<OpponentInView>();
 
 
