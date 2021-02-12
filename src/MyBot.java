@@ -150,8 +150,16 @@ public class MyBot implements Bot {
         }
       }
       if (unit.type == UnitType.WARRIOR && unit.opponentsInView.length > 0) {
-        OpponentInView opponent = unit.opponentsInView[0];
-        float aimAngle = calculateAimAngle(unit, opponent);
+        OpponentInView opponentWithLessHP = unit.opponentsInView[0];
+        int hp = unit.opponentsInView[0].health;
+        for (OpponentInView opponent : unit.opponentsInView){
+          if (opponent.health < hp){
+            hp = opponent.health;
+            opponentWithLessHP = opponent;
+          }
+        }
+
+        float aimAngle = calculateAimAngle(unit, opponentWithLessHP);
 
         // Based on the aiming angle turn towards the opponent.
         if (aimAngle > 0 && aimAngle < 3) {
@@ -167,18 +175,18 @@ public class MyBot implements Bot {
           api.setRotation(unit.id, Rotation.LEFT);
         }
 
-        float angleDifference = differenceAngle(unit, opponent);
+        float angleDifference = differenceAngle(unit, opponentWithLessHP);
         if ((aimAngle < angleDifference && aimAngle >= 0) || (aimAngle > -angleDifference && aimAngle <= 0)) {
           api.shoot(unit.id);
         }
 
         float opponentRotationRelativeToUnit = MathUtil.angleBetweenUnitAndPoint
-            (opponent.x, opponent.y, opponent.orientationAngle, unit.x, unit.y);
+            (opponentWithLessHP.x, opponentWithLessHP.y, opponentWithLessHP.orientationAngle, unit.x, unit.y);
 
         if ((opponentRotationRelativeToUnit > 110f
             || opponentRotationRelativeToUnit < -110f)
-            && opponent.speed == Speed.FORWARD
-            && MathUtil.distance(unit.x, unit.y, opponent.x, opponent.y) > 10f
+            && opponentWithLessHP.speed == Speed.FORWARD
+            && MathUtil.distance(unit.x, unit.y, opponentWithLessHP.x, opponentWithLessHP.y) > 10f
             && unit.canShoot) {
           api.setSpeed(unit.id, Speed.FORWARD);
         }
