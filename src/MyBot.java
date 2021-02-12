@@ -57,13 +57,22 @@ public class MyBot implements Bot {
     }
 
     // Spawns workers when there are less than 60% of them and the game still generates resources. Otherwise go for Warriors.
-    if (numberOfWorkers / (float) state.units.length < 0.6f && state.time < Constants.STOP_SPAWNING_AFTER / 1.2 && numberOfWorkers < 10) {
+    if (numberOfWorkers / (float) state.units.length < 0.6f
+        && state.time < Constants.STOP_SPAWNING_AFTER / 1.2
+        && numberOfWorkers <= 10) {
       if (state.resources >= Constants.WORKER_PRICE) {
         api.spawnUnit(UnitType.WORKER);
       }
     }
-    else if (state.resources >= Constants.WARRIOR_PRICE) {
-      api.spawnUnit(UnitType.WARRIOR);
+    else {
+      if (state.time >= Constants.STOP_SPAWNING_AFTER / 1.2
+          && numberOfWorkers < 2
+          && state.resources >= Constants.WORKER_PRICE
+          && state.resources < Constants.WARRIOR_PRICE) {
+        api.spawnUnit(UnitType.WORKER);
+      } else if (state.resources >= Constants.WARRIOR_PRICE) {
+        api.spawnUnit(UnitType.WARRIOR);
+      }
     }
     /* EOF UNITS SPAWN ROUTINE */
 
@@ -111,7 +120,7 @@ public class MyBot implements Bot {
           }
         }
 
-        if (unit.resourcesInView.length > 0 && unit.health > 20) {
+        if (unit.resourcesInView.length > 0) {
           float closerResourceDistance = 9999999;
           ResourceInView closerResource = null;
           for (ResourceInView resourceInRange : unit.resourcesInView) {
