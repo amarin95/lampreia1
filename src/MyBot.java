@@ -1,5 +1,6 @@
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import lia.Api;
 import lia.Bot;
 import lia.Constants;
@@ -7,6 +8,7 @@ import lia.MathUtil;
 import lia.NetworkingClient;
 import lia.api.GameState;
 import lia.api.OpponentInView;
+import lia.api.Point;
 import lia.api.ResourceInView;
 import lia.api.Rotation;
 import lia.api.Speed;
@@ -21,6 +23,7 @@ import lia.api.UnitType;
 public class MyBot implements Bot {
 
   CustomMemory memory = new CustomMemory();
+  Random random = new Random();
 
   void goToRandomPosition(Api api, int unitId) {
     while (true) {
@@ -77,28 +80,62 @@ public class MyBot implements Bot {
     /* EOF UNITS SPAWN ROUTINE */
 
     /* UNITS ACTIONS LOOP */
+    Point middle = new Point(Constants.MAP_WIDTH / 2, Constants.MAP_HEIGHT / 2);
+    int warriorsSentToMiddle = 0;
+    boolean workerSentToMiddle = false;
+
+    Point upperLeft = new Point( Constants.MAP_WIDTH / 6, Constants.MAP_HEIGHT * 5 / 6);
+    boolean workerSentToUpperLeft = false;
+
+    Point lowerRight = new Point(Constants.MAP_WIDTH * 5 / 6, Constants.MAP_HEIGHT / 6);
+
     for (int i = 0; i < state.units.length; i++) {
       UnitData unit = state.units[i];
 
       /* START OF MOVEMENT ROUTINE */
       // Units scout the map randomly only if they are not moving
       if (unit.navigationPath.length == 0) {
-        goToRandomPosition(api, unit.id);
+        if (state.time < 30) {
+          if (unit.type == UnitType.WORKER){
+            if (!workerSentToUpperLeft) {
+              api.navigationStart(unit.id, upperLeft.x, upperLeft.y);
+              workerSentToUpperLeft = true;
+            } else if (!workerSentToMiddle) {
+              api.navigationStart(unit.id, middle.x, middle.y);
+              api.saySomething(unit.id, "Going mid");
+              workerSentToMiddle = true;
+            } else {
+              api.navigationStart(unit.id, lowerRight.x, lowerRight.y);
+            }
+          }
+
+          if (unit.type == UnitType.WARRIOR) {
+            if (warriorsSentToMiddle < 2) {
+              api.navigationStart(unit.id, middle.x, middle.y);
+              warriorsSentToMiddle++;
+            } else {
+              api.navigationStart(unit.id, lowerRight.x, lowerRight.y);
+            }
+          }
+        } else {
+          goToRandomPosition(api, unit.id);
+        }
       }
       /*END OF UNIT MOVEMENT ROUTINE */
 
-      /* WORKER ACTION ROUTINE */
-      if (unit.type == UnitType.WORKER) {
-        if (unit.opponentsInView.length > 0) {
-          for (OpponentInView opponent : unit.opponentsInView) {
-            if (!memory.checkOpponentIfIsAlreadyInList(opponent)) {
-              memory.scoutedOpponents.add(opponent);
-            } else {
-              memory.updateScoutedOpponent(opponent);
-            }
+      /* If Unit scouted, goes to memory */
+      if (unit.opponentsInView.length > 0) {
+        for (OpponentInView opponent : unit.opponentsInView) {
+          if (!memory.checkOpponentIfIsAlreadyInList(opponent)) {
+            memory.scoutedOpponents.add(opponent);
+          } else {
+            memory.updateScoutedOpponent(opponent);
           }
         }
+      }
 
+      /* WORKER ACTION ROUTINE */
+      if (unit.type == UnitType.WORKER) {
         if (unit.resourcesInView.length == 0 && !memory.scoutedResources.isEmpty()) {
           api.saySomething(unit.id, "NO RESOURCE ON SIGHT");
           ResourceInView closeResourcePosition = null;
@@ -205,6 +242,9 @@ public class MyBot implements Bot {
       }
       /* EOF WARRIOR ACTION ROUTINE */
     }
+    warriorsSentToMiddle = 0;
+    workerSentToMiddle = false;
+    workerSentToUpperLeft = false;
     /* EOF UNITS ACTIONS LOOP */
   }
 
