@@ -26,7 +26,8 @@ public class MyBot implements Bot {
   CustomMemory memory = new CustomMemory();
   Random random = new Random();
 
-  int warriorsSentToMiddle = 0;
+  boolean warriorOneSentToMiddle = false;
+  boolean warriorTwoSentToMiddle = false;
   boolean workerSentToMiddle = false;
   boolean workerSentToUpperLeft = false;
 
@@ -99,19 +100,22 @@ public class MyBot implements Bot {
             if (!workerSentToUpperLeft && unit.x != upperLeft.x && unit.y != upperLeft.y) {
               api.navigationStart(unit.id, upperLeft.x, upperLeft.y);
               workerSentToUpperLeft = true;
-            } else if (!workerSentToMiddle && unit.x != middle.x && unit.y != middle.y) {
+            } else if (!workerSentToMiddle && unit.x != middle.x - 10 && unit.y != middle.y + 10) {
               api.navigationStart(unit.id, middle.x -10, middle.y + 10);
               api.saySomething(unit.id, "Going mid");
               workerSentToMiddle = true;
             } else {
-              api.navigationStart(unit.id, lowerRight.x, lowerRight.y);
+              api.navigationStart(unit.id, lowerRight.x - 10, lowerRight.y);
             }
           }
 
           if (unit.type == UnitType.WARRIOR) {
-            if (warriorsSentToMiddle < 2 && unit.x != middle.x && unit.y != middle.y) {
+            if (!warriorOneSentToMiddle && unit.x != middle.x && unit.y != middle.y){
               api.navigationStart(unit.id, middle.x, middle.y);
-              warriorsSentToMiddle++;
+              warriorOneSentToMiddle = true;
+            } else if (!warriorTwoSentToMiddle && unit.x != middle.x && unit.y != middle.y + 30){
+              api.navigationStart(unit.id, middle.x, middle.y + 30);
+              warriorTwoSentToMiddle = true;
             } else {
               api.navigationStart(unit.id, lowerRight.x, lowerRight.y);
             }
@@ -241,7 +245,8 @@ public class MyBot implements Bot {
       }
       /* EOF WARRIOR ACTION ROUTINE */
     }
-    warriorsSentToMiddle = 0;
+    warriorOneSentToMiddle = false;
+    warriorTwoSentToMiddle = false;
     workerSentToMiddle = false;
     workerSentToUpperLeft = false;
     /* EOF UNITS ACTIONS LOOP */
