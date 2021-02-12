@@ -22,8 +22,13 @@ import lia.api.UnitType;
  */
 public class MyBot implements Bot {
 
+  private static final float PICK_RESOURCES_FROM_MEMORY_AFTER = 11;
   CustomMemory memory = new CustomMemory();
   Random random = new Random();
+
+  int warriorsSentToMiddle = 0;
+  boolean workerSentToMiddle = false;
+  boolean workerSentToUpperLeft = false;
 
   void goToRandomPosition(Api api, int unitId) {
     while (true) {
@@ -81,27 +86,21 @@ public class MyBot implements Bot {
 
     /* UNITS ACTIONS LOOP */
     Point middle = new Point(Constants.MAP_WIDTH / 2, Constants.MAP_HEIGHT / 2);
-    int warriorsSentToMiddle = 0;
-    boolean workerSentToMiddle = false;
-
     Point upperLeft = new Point( Constants.MAP_WIDTH / 6, Constants.MAP_HEIGHT * 5 / 6);
-    boolean workerSentToUpperLeft = false;
-
     Point lowerRight = new Point(Constants.MAP_WIDTH * 5 / 6, Constants.MAP_HEIGHT / 6);
-
     for (int i = 0; i < state.units.length; i++) {
       UnitData unit = state.units[i];
 
       /* START OF MOVEMENT ROUTINE */
       // Units scout the map randomly only if they are not moving
       if (unit.navigationPath.length == 0) {
-        if (state.time < 30) {
+        if (state.time < PICK_RESOURCES_FROM_MEMORY_AFTER) {
           if (unit.type == UnitType.WORKER){
-            if (!workerSentToUpperLeft) {
+            if (!workerSentToUpperLeft && unit.x != upperLeft.x && unit.y != upperLeft.y) {
               api.navigationStart(unit.id, upperLeft.x, upperLeft.y);
               workerSentToUpperLeft = true;
-            } else if (!workerSentToMiddle) {
-              api.navigationStart(unit.id, middle.x, middle.y);
+            } else if (!workerSentToMiddle && unit.x != middle.x && unit.y != middle.y) {
+              api.navigationStart(unit.id, middle.x -10, middle.y + 10);
               api.saySomething(unit.id, "Going mid");
               workerSentToMiddle = true;
             } else {
@@ -110,7 +109,7 @@ public class MyBot implements Bot {
           }
 
           if (unit.type == UnitType.WARRIOR) {
-            if (warriorsSentToMiddle < 2) {
+            if (warriorsSentToMiddle < 2 && unit.x != middle.x && unit.y != middle.y) {
               api.navigationStart(unit.id, middle.x, middle.y);
               warriorsSentToMiddle++;
             } else {
@@ -136,7 +135,7 @@ public class MyBot implements Bot {
 
       /* WORKER ACTION ROUTINE */
       if (unit.type == UnitType.WORKER) {
-        if (unit.resourcesInView.length == 0 && !memory.scoutedResources.isEmpty()) {
+        if (unit.resourcesInView.length == 0 && !memory.scoutedResources.isEmpty() && state.time >= PICK_RESOURCES_FROM_MEMORY_AFTER) {
           api.saySomething(unit.id, "NO RESOURCE ON SIGHT");
           ResourceInView closeResourcePosition = null;
           float closeResourceDistance = 9999999;
