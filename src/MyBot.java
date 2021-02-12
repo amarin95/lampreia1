@@ -139,62 +139,42 @@ public class MyBot implements Bot {
 
       /* WORKER ACTION ROUTINE */
       if (unit.type == UnitType.WORKER) {
-        if (((unit.opponentsInView.length > 0 && unit.opponentsInView[0].type == UnitType.WARRIOR) || unit.opponentBulletsInView.length > 0)) {
-          UnitData closestAlliedWarrior = null;
-          float closestAlliedWarriorDistance = 999999;
-          for (UnitData alliedUnit : state.units) {
-            if (alliedUnit.type == UnitType.WARRIOR) {
-              float tempDistance = MathUtil.distance(unit.x, unit.y, alliedUnit.x, alliedUnit.y);
-              if (tempDistance < closestAlliedWarriorDistance) {
-                closestAlliedWarrior = alliedUnit;
-                closestAlliedWarriorDistance = tempDistance;
-              }
+        if (unit.resourcesInView.length == 0 && !memory.scoutedResources.isEmpty() && state.time >= PICK_RESOURCES_FROM_MEMORY_AFTER) {
+          api.saySomething(unit.id, "NO RESOURCE ON SIGHT");
+          ResourceInView closeResourcePosition = null;
+          float closeResourceDistance = 9999999;
+          for (ResourceInView resourcePosition : memory.scoutedResources) {
+            float resourceDistance = MathUtil.distance(unit.x, unit.y, resourcePosition.x, resourcePosition.y);
+            if (resourceDistance < closeResourceDistance) {
+              closeResourcePosition = resourcePosition;
+              closeResourceDistance = resourceDistance;
             }
           }
 
-          if (closestAlliedWarrior != null) {
-            api.navigationStart(unit.id, closestAlliedWarrior.x, closestAlliedWarrior.y, true);
-            api.saySomething(unit.id, "RETREEEEAT");
-          }
-
-        } else {
-          if (unit.resourcesInView.length == 0 && !memory.scoutedResources.isEmpty() && state.time >= PICK_RESOURCES_FROM_MEMORY_AFTER) {
-            api.saySomething(unit.id, "NO RESOURCE ON SIGHT");
-            ResourceInView closeResourcePosition = null;
-            float closeResourceDistance = 9999999;
-            for (ResourceInView resourcePosition : memory.scoutedResources) {
-              float resourceDistance = MathUtil.distance(unit.x, unit.y, resourcePosition.x, resourcePosition.y);
-              if (resourceDistance < closeResourceDistance) {
-                closeResourcePosition = resourcePosition;
-                closeResourceDistance = resourceDistance;
-              }
-            }
-
-            if (closeResourceDistance < 45) {
-              unit.navigationPath = null;
-              api.navigationStart(unit.id, closeResourcePosition.x, closeResourcePosition.y);
-              if (MathUtil.distance(unit.x, unit.y, closeResourcePosition.x, closeResourcePosition.y) < 15) {
-                memory.removeScoutedResource(closeResourcePosition);
-              }
+          if (closeResourceDistance < 45) {
+            unit.navigationPath = null;
+            api.navigationStart(unit.id, closeResourcePosition.x, closeResourcePosition.y);
+            if (MathUtil.distance(unit.x, unit.y, closeResourcePosition.x, closeResourcePosition.y) < 15) {
+              memory.removeScoutedResource(closeResourcePosition);
             }
           }
-          if (unit.resourcesInView.length > 0) {
-            float closerResourceDistance = 9999999;
-            ResourceInView closerResource = null;
-            for (ResourceInView resourceInRange : unit.resourcesInView) {
-              float resourceDistance = MathUtil.distance(unit.x, unit.y, resourceInRange.x, resourceInRange.y);
-              if (resourceDistance < closerResourceDistance) {
-                closerResource = resourceInRange;
-                closerResourceDistance = resourceDistance;
-              }
+        }
+        if (unit.resourcesInView.length > 0) {
+          float closerResourceDistance = 9999999;
+          ResourceInView closerResource = null;
+          for (ResourceInView resourceInRange : unit.resourcesInView) {
+            float resourceDistance = MathUtil.distance(unit.x, unit.y, resourceInRange.x, resourceInRange.y);
+            if (resourceDistance < closerResourceDistance) {
+              closerResource = resourceInRange;
+              closerResourceDistance = resourceDistance;
             }
-
-            if (memory.checkResourceIfIsAlreadyInList(closerResource)) {
-              memory.removeScoutedResource(closerResource);
-
-            }
-            api.navigationStart(unit.id, closerResource.x, closerResource.y);
           }
+
+          if (memory.checkResourceIfIsAlreadyInList(closerResource)) {
+            memory.removeScoutedResource(closerResource);
+
+          }
+          api.navigationStart(unit.id, closerResource.x, closerResource.y);
         }
       }
       /* EOF WORKER ACTION ROUTINE */
